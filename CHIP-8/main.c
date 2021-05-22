@@ -110,6 +110,3 @@ int main(int argc, char** argv)
     free(program);
     c8_host_cleanup();
 }
-
-
-

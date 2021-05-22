@@ -185,7 +185,6 @@ void c8_cpu_cyle(c8* vm)
             vm->i += vm->v[x];
             break;
         case 0x29:		// LD F, Vx
-            //vm->i = vm->fontset[vm->v[x] * 5 % 16];
             vm->i = 0x050 + (vm->v[x] * 5);
             break;
         case 0x33:		// LD B, Vx
@@ -326,5 +325,3 @@ inline c8_byte c8_await_key_press(c8* vm)
     vm->pc -= 2 * !keyPressed;
     return c8_log2(keyPressed);
 }
-
-
