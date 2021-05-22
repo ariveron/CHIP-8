@@ -1,6 +1,6 @@
 # CHIP-8
 
-A CHIP-8 emulator implemented in C with no third-party dependencies. The project only supports WIN32 for now, but could easily support any other platform by reimplementing the `c8_host_*` functions for other platforms.
+A CHIP-8 emulator implemented in C with no third-party libraries. The project only supports WIN32 for now, but could easily support any other platform by reimplementing the `c8_host_*` functions for other platforms.
 
 For CHIP-8 input use the following QWERTY to CHIP-8 keyboard mappings:
 ```
