@@ -19,7 +19,7 @@ struct
     CONSOLE_CURSOR_INFO cursor_info;
 } host = { 0 };
 
-BITMAPINFO* c8_host_create_dib_info();
+inline BITMAPINFO* c8_host_create_dib_info(void);
 
 // **************************
 // **   PUBLIC FUNCTIONS   **
@@ -55,7 +55,7 @@ int c8_host_init(const wchar_t* title, int width, int height, int scale)
     return TRUE;
 }
 
-void c8_host_cleanup()
+void c8_host_cleanup(void)
 {
     if (!host.initialized) return;
 
@@ -69,14 +69,14 @@ void c8_host_cleanup()
     host.initialized = FALSE;
 }
 
-uint64_t c8_host_get_100nanoseconds()
+uint64_t c8_host_get_100nanoseconds(void)
 {
     FILETIME ft;
     GetSystemTimeAsFileTime(&ft);
     return (((uint64_t)ft.dwHighDateTime << 32) | ft.dwLowDateTime);
 }
 
-c8_word c8_host_get_keys()
+c8_word c8_host_get_keys(void)
 {
     c8_word keys = 0;
     keys |= !!(GetKeyState('1') & ~1) * C8_KEY_1;
@@ -98,37 +98,37 @@ c8_word c8_host_get_keys()
     return keys;
 }
 
-void c8_host_make_sound()
+void c8_host_make_sound(void)
 {
     Beep(1000, 1);
 }
 
-int c8_host_is_not_quit()
+int c8_host_is_not_quit(void)
 {
     return !(GetKeyState(VK_ESCAPE) & ~1);
 }
 
-int c8_host_is_speed_up()
+int c8_host_is_speed_up(void)
 {
     return !!(GetKeyState(VK_OEM_PLUS) & ~1);
 }
 
-int c8_host_is_speed_down()
+int c8_host_is_speed_down(void)
 {
     return !!(GetKeyState(VK_OEM_MINUS) & ~1);
 }
 
-int c8_host_is_speed_reset()
+int c8_host_is_speed_reset(void)
 {
     return !!(GetKeyState('0') & ~1);
 }
 
-int c8_host_is_paused()
+int c8_host_is_paused(void)
 {
     return !!(GetKeyState(VK_SPACE) & ~1);
 }
 
-int c8_host_is_program_reset()
+int c8_host_is_program_reset(void)
 {
     return !!(GetKeyState(VK_BACK) & ~1);
 }
@@ -147,7 +147,7 @@ void c8_host_sleep(unsigned long milliseconds)
 // **   PRIVATE FUNCTIONS   **
 // ***************************
 
-BITMAPINFO* c8_host_create_dib_info()
+inline BITMAPINFO* c8_host_create_dib_info(void)
 {
     BITMAPINFO* info = (BITMAPINFO*)malloc(sizeof(BITMAPINFOHEADER) + 2 * sizeof(RGBQUAD));
     if (info == NULL) return NULL;
