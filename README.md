@@ -1,13 +1,30 @@
 # CHIP-8
 
-A CHIP-8 emulator implemented in C. The project only supports WIN32 for now, but could easily support any other platform by reimplementing the `c8_host_*` functions.
+A CHIP-8 emulator implemented in C with no third-party dependencies. The project only supports WIN32 for now, but could easily support any other platform by reimplementing the `c8_host_*` functions for other platforms.
 
-This project doesn't use any third-party libraries, except for the platform specific libraries, `Windows.h`. The CHIP-8 is simple enough that there shouldn't be a need to use third-party libraries to implement any of the platform specific functions.
+For CHIP-8 input use the following QWERTY to CHIP-8 keyboard mappings:
+```
+1 2 3 4  ->  1 2 3 C
+Q W E R  ->  4 5 6 D
+A S D F  ->  7 8 9 E
+Z X C V  ->  A 0 B F
+```
 
-For CHIP-8 input use the following keys: `1234QWERASDFZXCV`.
+Additiona emulator controls include:
+- Pause program `SPACE`
+- Reset program `BACK`
+- CPU speed up `+`
+- CPU speed down `-`
+- CPU speed reset `0`
 
-To pause hold the `SPACE` key, to reset the program use the `BACK` key, to adjust the CPU speed use the following keys: `0-=`.
+To build the project as is:
+- Install the MSVC v142 toolset with spectre mitigation
+- Open `CHIP-8.sln` with Visual Studio 2019 and Build
+- NOTE: You could build with a different toolset by changing the project settings
 
-To start a program, type the following command: `C8 <ROM>`, <ROM> is a ROM file for the CHIP-8.
+To run a program, use the following command in either CMD or PowerShell on Windows OS:
+```
+.\c8 <ROM FILE>
+```
 
-The ROMs folder includes some CHIP-8 ROMs that are in the public domain.
+The ROMs folder includes some CHIP-8 programs from the public domain.
