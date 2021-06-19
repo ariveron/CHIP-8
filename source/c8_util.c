@@ -1,5 +1,6 @@
 #include "c8.h"
 
+#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 
@@ -8,7 +9,8 @@ c8_word c8_util_file_to_byte_array(const char* filePath, c8_byte** buffer)
     FILE* file = NULL;
     c8_word fileSize = 0;
 
-    if (fopen_s(&file, filePath, "rb") || file == NULL)
+    file = fopen(filePath, "rb");
+    if (file == NULL)
     {
         *buffer = NULL;
         return 0;
@@ -18,7 +20,7 @@ c8_word c8_util_file_to_byte_array(const char* filePath, c8_byte** buffer)
     fileSize = (c8_word)ftell(file);
     rewind(file);
 
-    *buffer = (uint8_t*)malloc(fileSize * sizeof(uint8_t));
+    *buffer = (c8_byte*)malloc(fileSize * sizeof(c8_byte));
 
     if (*buffer == NULL)
     {
@@ -26,7 +28,7 @@ c8_word c8_util_file_to_byte_array(const char* filePath, c8_byte** buffer)
         return 0;
     }
 
-    fread_s(*buffer, fileSize * sizeof(uint8_t), fileSize, 1, file);
+    fread(*buffer, fileSize * sizeof(c8_byte), 1, file);
     fclose(file);
 
     return fileSize;

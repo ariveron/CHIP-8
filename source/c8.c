@@ -20,7 +20,7 @@ inline c8_byte c8_await_key_press(c8* vm);
 void c8_initialize(c8* vm)
 {
     memset(vm, 0, sizeof(c8));
-    memcpy_s(vm->fontset, sizeof(vm->fontset), c8_fontset, sizeof(c8_fontset));
+    memcpy(vm->fontset, c8_fontset, sizeof(vm->fontset));
     vm->pc = 0x200;
     vm->s1 = 0xf0;
     vm->s2 = 0x0f;
@@ -28,7 +28,24 @@ void c8_initialize(c8* vm)
 
 void c8_load_program(c8* vm, c8_byte* program, c8_word program_size)
 {
-    memcpy_s(vm->program, sizeof(vm->program), program, program_size);
+    memcpy(vm->program, program, program_size);
+}
+
+void c8_timer_cycle(c8* vm)
+{
+    // Decrement if not zero
+    vm->delay_timer -= !!vm->delay_timer;
+    vm->sound_timer -= !!vm->sound_timer;
+}
+
+void c8_update_keys(c8* vm, c8_word keys)
+{
+    vm->keys = keys;
+}
+
+c8_byte c8_is_playing_sound(c8* vm)
+{
+    return vm->sound_timer > 0;
 }
 
 void c8_cpu_cyle(c8* vm)
@@ -213,14 +230,14 @@ void c8_cpu_cyle(c8* vm)
 // **   PRIVATE FUNCTIONS   **
 // ***************************
 
-inline c8_word c8_fetch_word(c8_byte* vm, c8_word address)
+c8_word c8_fetch_word(c8_byte* vm, c8_word address)
 {
     // CHIP-8 memory is supposed to be Big Endian
     //return (c8_word)vm->program[address] << 8 | vm->program[address + 1];
     return (c8_word)vm[address] << 8 | vm[address + 1];
 }
 
-inline c8_byte c8_rand(c8* vm)
+c8_byte c8_rand(c8* vm)
 {
     // Simple PRNG algorithm that can be seeded
     vm->s1 = 15 * (vm->s1 & 0xf) + (vm->s1 >> 4);
@@ -228,7 +245,7 @@ inline c8_byte c8_rand(c8* vm)
     return (vm->s1 << 4) + vm->s2;
 }
 
-inline void c8_draw_sprite(c8* vm, c8_byte x, c8_byte y, c8_byte n)
+void c8_draw_sprite(c8* vm, c8_byte x, c8_byte y, c8_byte n)
 {
     // Wrap around past 63
     x %= 64;
@@ -281,7 +298,7 @@ inline void c8_draw_sprite(c8* vm, c8_byte x, c8_byte y, c8_byte n)
     }
 }
 
-inline void c8_reg_dump(c8* vm, c8_byte x)
+void c8_reg_dump(c8* vm, c8_byte x)
 {
     c8_byte* mem = (c8_byte*)vm;
 
@@ -291,7 +308,7 @@ inline void c8_reg_dump(c8* vm, c8_byte x)
     }
 }
 
-inline void c8_reg_load(c8* vm, c8_byte x)
+void c8_reg_load(c8* vm, c8_byte x)
 {
     c8_byte* mem = (c8_byte*)vm;
 
@@ -301,14 +318,14 @@ inline void c8_reg_load(c8* vm, c8_byte x)
     }
 }
 
-inline c8_byte c8_log2(c8_word x)
+c8_byte c8_log2(c8_word x)
 {
     c8_byte log2 = 1;
     while ((x >> (log2)) > 0) log2++;
     return log2 - 1;
 }
 
-inline c8_word c8_converse_nonimplication(c8_word x, c8_word y)
+c8_word c8_converse_nonimplication(c8_word x, c8_word y)
 {
     // x y -> y AND(x XOR y)
     // 1 1 -> 0
@@ -318,7 +335,7 @@ inline c8_word c8_converse_nonimplication(c8_word x, c8_word y)
     return y & (x ^ y);
 }
 
-inline c8_byte c8_await_key_press(c8* vm)
+c8_byte c8_await_key_press(c8* vm)
 {
     // If no key is pressed, repeat the last instruction until it is, and return key num
     c8_word keyPressed = c8_converse_nonimplication(vm->prev_keys, vm->keys);

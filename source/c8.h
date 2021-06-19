@@ -2,6 +2,7 @@
 #define C8_H
 
 #include <stdint.h>
+#include <stddef.h>
 
 typedef uint8_t c8_byte;
 typedef uint16_t c8_word;
@@ -56,24 +57,13 @@ void c8_cpu_cyle(c8* vm);
 void c8_load_program(c8* vm, c8_byte* program, c8_word program_size);
 
 // Emulate single CHIP-8 timer cycle
-inline void c8_timer_cycle(c8* vm)
-{
-    // Decrement if not zero
-    vm->delay_timer -= !!vm->delay_timer;
-    vm->sound_timer -= !!vm->sound_timer;
-}
+void c8_timer_cycle(c8* vm);
 
 // Update all keys
-inline void c8_update_keys(c8* vm, c8_word keys)
-{
-    vm->keys = keys;
-}
+void c8_update_keys(c8* vm, c8_word keys);
 
 // Returns 1 if playing sounds, 0 otherwise
-inline c8_byte c8_is_playing_sound(c8* vm)
-{
-    return vm->sound_timer > 0;
-}
+c8_byte c8_is_playing_sound(c8* vm);
 
 // Utility functions
 c8_word c8_util_file_to_byte_array(const char* filePath, c8_byte** buffer);
