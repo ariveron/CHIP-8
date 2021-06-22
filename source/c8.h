@@ -24,7 +24,7 @@ typedef uint16_t c8_word;
 #define C8_KEY_E 16384
 #define C8_KEY_F 32768
 
-// CHIP-8 entire state in 4096 bytes (4 KiB)
+// CHIP-8 entire state in 4096 (0x1000) bytes (4 KiB)
 typedef struct c8
 {
     c8_word pc;                     // 0x000            -> Program counter
@@ -56,41 +56,12 @@ void c8_cpu_cyle(c8* vm);
 void c8_load_program(c8* vm, c8_byte* program, c8_word program_size);
 
 // Emulate single CHIP-8 timer cycle
-inline void c8_timer_cycle(c8* vm)
-{
-    // Decrement if not zero
-    vm->delay_timer -= !!vm->delay_timer;
-    vm->sound_timer -= !!vm->sound_timer;
-}
+void c8_timer_cycle(c8* vm);
 
 // Update all keys
-inline void c8_update_keys(c8* vm, c8_word keys)
-{
-    vm->keys = keys;
-}
+void c8_update_keys(c8* vm, c8_word keys);
 
 // Returns 1 if playing sounds, 0 otherwise
-inline c8_byte c8_is_playing_sound(c8* vm)
-{
-    return vm->sound_timer > 0;
-}
-
-// Utility functions
-c8_word c8_util_file_to_byte_array(const char* filePath, c8_byte** buffer);
-
-// Host functions, must be implemented for each host platform
-int c8_host_init(const wchar_t* title, int width, int height, int scale);
-void c8_host_cleanup(void);
-uint64_t c8_host_get_100nanoseconds(void);
-c8_word c8_host_get_keys(void);
-void c8_host_make_sound(void);
-int c8_host_is_not_quit(void);
-int c8_host_is_speed_up(void);
-int c8_host_is_speed_down(void);
-int c8_host_is_speed_reset(void);
-int c8_host_is_paused(void);
-int c8_host_is_program_reset(void);
-void c8_host_render(c8_byte* buf);
-void c8_host_sleep(unsigned long milliseconds);
+c8_byte c8_is_playing_sound(c8* vm);
 
 #endif
