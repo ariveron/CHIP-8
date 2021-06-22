@@ -23,8 +23,8 @@ To build the project as is:
 - Go into the repo folder, `cd CHIP-8`
 - Run the `premake.sh` on Linux/Mac or `premake.bat` on Windows to install VCPKG and SDL2 locally under this folder
 - Create a `build` folder, `mkdir build`
+- Create the build files, `cmake -S . -B build`
 - Go into the `build` folder, `cd build`
-- Create the build files, `cmake .`
 - Build the program, `cmake build .`
 - The executable should be in the `build/bin/` folder
 
