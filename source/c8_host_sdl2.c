@@ -1,169 +1,199 @@
-#include "c8.h"
+#ifndef NO_SDL
 
-#include <SDL.h>
+#include "c8_host.h"
+
+#include <SDL2/SDL.h>
 #include <stdlib.h>
 
-SDL_Renderer *renderer = NULL;
-SDL_Window *window = NULL;
-SDL_Texture *buffer = NULL;
-c8_byte *pixels = NULL;
-int pitch = 0;
-int w, h, s;
-SDL_Event event;
+void graphics_draw_pixels();
+int graphics_init();
+void graphics_cleanup();
+typedef struct graphics_control
+{
+  int w, h, s;
+  SDL_Window *window;
+  SDL_Renderer *renderer;
+  SDL_Texture *target;
+  c8_byte *pixels;
+  c8_byte on, off;
+} graphics_control;
+graphics_control graphics;
 
-c8_word keys = 0;
-int isQuit = 0;
-int isSpeedUp = 0;
-int isSpeedDown = 0;
-int isReset = 0;
-int isPaused = 0;
-int isProgramReset = 0;
-void get_events();
+void controller_update();
+int controller_init();
+typedef struct input_control
+{
+  c8_word c8_keys;
+  int isQuit;
+  int isSpeedUp;
+  int isSpeedDown;
+  int isReset;
+  int isPaused;
+  int isProgramReset;
+} input_control;
+input_control controller;
 
-const int AMPLITUDE = 28000;
-const int SAMPLE_RATE = 44100;
-int sample_nr = 0;
-SDL_AudioSpec want;
-SDL_AudioSpec have;
-void audio_callback(void *user_data, Uint8 *raw_buffer, int bytes);
+void beeper_beep();
+int beeper_init();
+void beeper_cleanup();
+void beeper_callback(void *user_data, Uint8 *raw_buffer, int bytes);
+typedef struct beep_control
+{
+  int sample_rate;
+  int amplitude;
+  int sample_number;
+  SDL_AudioSpec desired_spec;
+  SDL_AudioSpec obtained_spec;
+} beep_control;
+beep_control beeper;
 
 int c8_host_init(const wchar_t* title, int width, int height, int scale)
 {
   SDL_Init(SDL_INIT_VIDEO | SDL_INIT_AUDIO);
-  SDL_CreateWindowAndRenderer(width * scale, height * scale, 0, &window, &renderer);
-  SDL_Delay(100);
-  
-  SDL_SetRenderDrawColor(renderer, 0, 0, 0, 0);
-  SDL_RenderClear(renderer);
-  SDL_RenderPresent(renderer);
-
-  buffer = SDL_CreateTexture(renderer,
-    SDL_PIXELFORMAT_RGB332,
-    SDL_TEXTUREACCESS_STREAMING,
-    width,
-    height);
-
-  pixels = malloc(width * height);
-  pitch = width;
-
-  w = width; h = height; s = scale;
-  
-  want.freq = SAMPLE_RATE; // number of samples per second
-  want.format = AUDIO_S16SYS; // sample type (here: signed short i.e. 16 bit)
-  want.channels = 1; // only one channel
-  want.samples = 2048; // buffer-size
-  want.callback = audio_callback; // function SDL calls periodically to refill the buffer
-  want.userdata = &sample_nr; // counter, keeping track of current sample number
-
-  if(SDL_OpenAudio(&want, &have) != 0) SDL_LogError(SDL_LOG_CATEGORY_AUDIO, "Failed to open audio: %s", SDL_GetError());
-  if(want.format != have.format) SDL_LogError(SDL_LOG_CATEGORY_AUDIO, "Failed to get the desired AudioSpec");
-
+  if (!graphics_init(width, height, scale)) return 0;
+  if (!controller_init()) return 0;
+  if (!beeper_init()) return 0;
   return 1;
 }
 
 void c8_host_cleanup(void)
 {
-  SDL_CloseAudio();
-  free(pixels);
-  SDL_DestroyTexture(buffer);
-  SDL_DestroyRenderer(renderer);
-  SDL_DestroyWindow(window);
+  beeper_cleanup();
+  graphics_cleanup(); 
   SDL_Quit();
 }
 
 uint64_t c8_host_get_100nanoseconds(void)
 {
-  get_events();
+  controller_update();
   return SDL_GetTicks() * 10000;
 }
 
 c8_word c8_host_get_keys(void)
 {
-  get_events();
-  return keys;
+  controller_update();
+  return controller.c8_keys;
 }
 
 void c8_host_make_sound(void)
 {
-  SDL_PauseAudio(0); // start playing sound
-  SDL_Delay(20); // wait while sound is playing
-  SDL_PauseAudio(1); // stop playing sound
+  beeper_beep(30);
 }
 
 int c8_host_is_not_quit(void)
 {
-  get_events();
-  return !isQuit;
+  controller_update();
+  return !controller.isQuit;
 }
 
 int c8_host_is_speed_up(void)
 {
-  get_events();
-  return isSpeedUp;
+  controller_update();
+  return controller.isSpeedUp;
 }
 
 int c8_host_is_speed_down(void)
 {
-  get_events();
-  return isSpeedDown;
+  controller_update();
+  return controller.isSpeedDown;
 }
 
 int c8_host_is_speed_reset(void)
 {
-  get_events();
-  return isReset;
+  controller_update();
+  return controller.isReset;
 }
 
 int c8_host_is_paused(void)
 {
-  get_events();
-  return isPaused;
+  controller_update();
+  return controller.isPaused;
 }
 
 int c8_host_is_program_reset(void)
 {
-  get_events();
-  return isProgramReset;
+  controller_update();
+  return controller.isProgramReset;
 }
 
 void c8_host_render(c8_byte* buf)
 {
-  get_events();
-
-  // RGB332
-  c8_byte on  = 0b00011100;
-  c8_byte off = 0b00000100;
-
-  for (int i = 0, j = 0; i < (w / 8 * h); i++, j+=8)
+  controller_update();
+  for (int i = 0, j = 0; i < (graphics.w / 8 * graphics.h); i++, j+=8)
   {
-    pixels[j+0] = ((buf[i] & 0b10000000) >> 7) ? on : off;
-    pixels[j+1] = ((buf[i] & 0b01000000) >> 6) ? on : off;
-    pixels[j+2] = ((buf[i] & 0b00100000) >> 5) ? on : off;
-    pixels[j+3] = ((buf[i] & 0b00010000) >> 4) ? on : off;
-    pixels[j+4] = ((buf[i] & 0b00001000) >> 3) ? on : off;
-    pixels[j+5] = ((buf[i] & 0b00000100) >> 2) ? on : off;
-    pixels[j+6] = ((buf[i] & 0b00000010) >> 1) ? on : off;
-    pixels[j+7] = ((buf[i] & 0b00000001) >> 0) ? on : off;
+    graphics.pixels[j+0] = ((buf[i] & 0b10000000) >> 7) ? graphics.on : graphics.off;
+    graphics.pixels[j+1] = ((buf[i] & 0b01000000) >> 6) ? graphics.on : graphics.off;
+    graphics.pixels[j+2] = ((buf[i] & 0b00100000) >> 5) ? graphics.on : graphics.off;
+    graphics.pixels[j+3] = ((buf[i] & 0b00010000) >> 4) ? graphics.on : graphics.off;
+    graphics.pixels[j+4] = ((buf[i] & 0b00001000) >> 3) ? graphics.on : graphics.off;
+    graphics.pixels[j+5] = ((buf[i] & 0b00000100) >> 2) ? graphics.on : graphics.off;
+    graphics.pixels[j+6] = ((buf[i] & 0b00000010) >> 1) ? graphics.on : graphics.off;
+    graphics.pixels[j+7] = ((buf[i] & 0b00000001) >> 0) ? graphics.on : graphics.off;
   }
-
-  SDL_UpdateTexture(buffer, NULL, pixels, pitch);
-  SDL_RenderCopy(renderer, buffer, NULL, NULL);
-  SDL_RenderPresent(renderer);
+  graphics_draw_pixels();  
 }
 
 void c8_host_sleep(unsigned long milliseconds)
 {
-  get_events();
+  controller_update();
   SDL_Delay(milliseconds);
 }
 
-void get_events()
+void graphics_draw_pixels()
 {
+  SDL_UpdateTexture(graphics.target, NULL, graphics.pixels, graphics.w);
+  SDL_RenderCopy(graphics.renderer, graphics.target, NULL, NULL);
+  SDL_RenderPresent(graphics.renderer);
+}
+
+int graphics_init(int width, int height, int scale)
+{
+  // RGB332
+  graphics.on  = 0b00011100;
+  graphics.off = 0b00000100;
+
+  graphics.w = width;
+  graphics.h = height;
+  graphics.s = scale;
+  
+  if (SDL_CreateWindowAndRenderer(
+    width * scale, height * scale, 0, &graphics.window, &graphics.renderer) 
+    != 0) return 0;
+  SDL_Delay(100);
+  
+  if (SDL_SetRenderDrawColor(graphics.renderer, 0, 0, 0, 0) != 0) return 0;
+  if (SDL_RenderClear(graphics.renderer) != 0) return 0;
+  SDL_RenderPresent(graphics.renderer);
+  
+  graphics.target = SDL_CreateTexture(graphics.renderer,
+    SDL_PIXELFORMAT_RGB332,
+    SDL_TEXTUREACCESS_STREAMING,
+    width,
+    height);
+  if (graphics.target == NULL) return 0;
+
+  graphics.pixels = malloc(width * height);
+  if (graphics.pixels == NULL) return 0;
+
+  return 1;
+}
+
+void graphics_cleanup()
+{
+  free(graphics.pixels);
+  SDL_DestroyTexture(graphics.target);
+  SDL_DestroyRenderer(graphics.renderer);
+  SDL_DestroyWindow(graphics.window); 
+}
+
+void controller_update()
+{
+  SDL_Event event;
   while (SDL_PollEvent(&event))
   {
     if (event.type == SDL_QUIT)
     {
-      isQuit = 1;
+      controller.isQuit = 1;
       return;
     }   
 
@@ -171,56 +201,56 @@ void get_events()
       case SDL_KEYUP:
       {
         switch (event.key.keysym.sym) {
-          case SDLK_1: keys &= ~C8_KEY_1; break;
-          case SDLK_2: keys &= ~C8_KEY_2; break;
-          case SDLK_3: keys &= ~C8_KEY_3; break;
-          case SDLK_4: keys &= ~C8_KEY_C; break;
-          case SDLK_q: keys &= ~C8_KEY_4; break;
-          case SDLK_w: keys &= ~C8_KEY_5; break;
-          case SDLK_e: keys &= ~C8_KEY_6; break;
-          case SDLK_r: keys &= ~C8_KEY_D; break;
-          case SDLK_a: keys &= ~C8_KEY_7; break;
-          case SDLK_s: keys &= ~C8_KEY_8; break;
-          case SDLK_d: keys &= ~C8_KEY_9; break;
-          case SDLK_f: keys &= ~C8_KEY_E; break;
-          case SDLK_z: keys &= ~C8_KEY_A; break;
-          case SDLK_x: keys &= ~C8_KEY_0; break;
-          case SDLK_c: keys &= ~C8_KEY_B; break;
-          case SDLK_v: keys &= ~C8_KEY_F; break;
-          case SDLK_ESCAPE: isQuit = 0; break;
-          case SDLK_PLUS: isSpeedUp = 0; break;
-          case SDLK_MINUS: isSpeedDown = 0; break;
-          case SDLK_0: isReset = 0; break;
-          case SDLK_SPACE: isPaused = 0; break;
-          case SDLK_BACKSPACE: isProgramReset = 0; break;
+          case SDLK_1: controller.c8_keys &= ~C8_KEY_1; break;
+          case SDLK_2: controller.c8_keys &= ~C8_KEY_2; break;
+          case SDLK_3: controller.c8_keys &= ~C8_KEY_3; break;
+          case SDLK_4: controller.c8_keys &= ~C8_KEY_C; break;
+          case SDLK_q: controller.c8_keys &= ~C8_KEY_4; break;
+          case SDLK_w: controller.c8_keys &= ~C8_KEY_5; break;
+          case SDLK_e: controller.c8_keys &= ~C8_KEY_6; break;
+          case SDLK_r: controller.c8_keys &= ~C8_KEY_D; break;
+          case SDLK_a: controller.c8_keys &= ~C8_KEY_7; break;
+          case SDLK_s: controller.c8_keys &= ~C8_KEY_8; break;
+          case SDLK_d: controller.c8_keys &= ~C8_KEY_9; break;
+          case SDLK_f: controller.c8_keys &= ~C8_KEY_E; break;
+          case SDLK_z: controller.c8_keys &= ~C8_KEY_A; break;
+          case SDLK_x: controller.c8_keys &= ~C8_KEY_0; break;
+          case SDLK_c: controller.c8_keys &= ~C8_KEY_B; break;
+          case SDLK_v: controller.c8_keys &= ~C8_KEY_F; break;
+          case SDLK_ESCAPE: controller.isQuit = 0; break;
+          case SDLK_EQUALS: controller.isSpeedUp = 0; break;
+          case SDLK_MINUS: controller.isSpeedDown = 0; break;
+          case SDLK_0: controller.isReset = 0; break;
+          case SDLK_SPACE: controller.isPaused = 0; break;
+          case SDLK_BACKSPACE: controller.isProgramReset = 0; break;
           default: break;
         }
       } break;
       case SDL_KEYDOWN:
       {
         switch (event.key.keysym.sym) {
-          case SDLK_1: keys |= C8_KEY_1; break;
-          case SDLK_2: keys |= C8_KEY_2; break;
-          case SDLK_3: keys |= C8_KEY_3; break;
-          case SDLK_4: keys |= C8_KEY_C; break;
-          case SDLK_q: keys |= C8_KEY_4; break;
-          case SDLK_w: keys |= C8_KEY_5; break;
-          case SDLK_e: keys |= C8_KEY_6; break;
-          case SDLK_r: keys |= C8_KEY_D; break;
-          case SDLK_a: keys |= C8_KEY_7; break;
-          case SDLK_s: keys |= C8_KEY_8; break;
-          case SDLK_d: keys |= C8_KEY_9; break;
-          case SDLK_f: keys |= C8_KEY_E; break;
-          case SDLK_z: keys |= C8_KEY_A; break;
-          case SDLK_x: keys |= C8_KEY_0; break;
-          case SDLK_c: keys |= C8_KEY_B; break;
-          case SDLK_v: keys |= C8_KEY_F; break;
-          case SDLK_ESCAPE: isQuit = 1; break;
-          case SDLK_PLUS: isSpeedUp = 1; break;
-          case SDLK_MINUS: isSpeedDown = 1; break;
-          case SDLK_0: isReset = 1; break;
-          case SDLK_SPACE: isPaused = 1; break;
-          case SDLK_BACKSPACE: isProgramReset = 1; break;
+          case SDLK_1: controller.c8_keys |= C8_KEY_1; break;
+          case SDLK_2: controller.c8_keys |= C8_KEY_2; break;
+          case SDLK_3: controller.c8_keys |= C8_KEY_3; break;
+          case SDLK_4: controller.c8_keys |= C8_KEY_C; break;
+          case SDLK_q: controller.c8_keys |= C8_KEY_4; break;
+          case SDLK_w: controller.c8_keys |= C8_KEY_5; break;
+          case SDLK_e: controller.c8_keys |= C8_KEY_6; break;
+          case SDLK_r: controller.c8_keys |= C8_KEY_D; break;
+          case SDLK_a: controller.c8_keys |= C8_KEY_7; break;
+          case SDLK_s: controller.c8_keys |= C8_KEY_8; break;
+          case SDLK_d: controller.c8_keys |= C8_KEY_9; break;
+          case SDLK_f: controller.c8_keys |= C8_KEY_E; break;
+          case SDLK_z: controller.c8_keys |= C8_KEY_A; break;
+          case SDLK_x: controller.c8_keys |= C8_KEY_0; break;
+          case SDLK_c: controller.c8_keys |= C8_KEY_B; break;
+          case SDLK_v: controller.c8_keys |= C8_KEY_F; break;
+          case SDLK_ESCAPE: controller.isQuit = 1; break;
+          case SDLK_EQUALS: controller.isSpeedUp = 1; break;
+          case SDLK_MINUS: controller.isSpeedDown = 1; break;
+          case SDLK_0: controller.isReset = 1; break;
+          case SDLK_SPACE: controller.isPaused = 1; break;
+          case SDLK_BACKSPACE: controller.isProgramReset = 1; break;
           default: break;
         }
       } break;
@@ -229,15 +259,61 @@ void get_events()
   }
 }
 
-void audio_callback(void *user_data, Uint8 *raw_buffer, int bytes)
-{
-    Sint16 *buffer = (Sint16*)raw_buffer;
-    int length = bytes / 2; // 2 bytes per sample for AUDIO_S16SYS
-    int *sample_nr = (int*)user_data;
-
-    for(int i = 0; i < length; i++, (*sample_nr)++)
-    {
-        double time = (double)(*sample_nr) / (double)SAMPLE_RATE;
-        buffer[i] = (Sint16)(AMPLITUDE * sin(2.0f * M_PI * 441.0f * time)); // render 441 HZ sine wave
-    }
+int controller_init(){
+  controller.c8_keys = 0;
+  controller.isQuit = 0;
+  controller.isSpeedUp = 0;
+  controller.isSpeedDown = 0;
+  controller.isReset = 0;
+  controller.isReset = 0;
+  controller.isProgramReset = 0;
+  return 1;
 }
+
+void beeper_beep(int ms)
+{
+  SDL_PauseAudio(0);
+  SDL_Delay(ms);
+  SDL_PauseAudio(1);
+}
+
+int beeper_init()
+{
+  beeper.sample_rate = 44100;
+  beeper.amplitude = 28000;
+
+  beeper.sample_number = 0;
+  beeper.desired_spec.format = AUDIO_S16;
+  beeper.desired_spec.channels = 1;
+  beeper.desired_spec.samples = 2048;
+  beeper.desired_spec.freq = beeper.sample_rate;
+  beeper.desired_spec.userdata = &beeper.sample_number;
+  beeper.desired_spec.callback = beeper_callback;
+  
+  if (SDL_OpenAudio(&beeper.desired_spec, &beeper.obtained_spec) != 0) return 0;
+  if (beeper.desired_spec.format != beeper.obtained_spec.format) return 0;
+  return 1;
+}
+
+void beeper_cleanup()
+{
+  SDL_CloseAudio();
+}
+
+void beeper_callback(void *user_data, Uint8 *raw_buffer, int bytes)
+{
+  // AUDIO_S16SYS requies 2 BPS
+  Sint16 *buf16 = (Sint16*)raw_buffer;
+  int buf16_length = bytes / 2; 
+
+  int *sample_number = (int*)user_data;
+  
+  // 441 HZ sine wive
+  for (int i = 0; i < buf16_length; i++, (*sample_number)++)
+  {
+    double time = (double)(*sample_number) / (double)beeper.sample_rate;
+    buf16[i] = (Sint16)(beeper.amplitude * sin(2.0f * M_PI * beeper.sample_rate / 100.0f * time));
+  }
+}
+
+#endif

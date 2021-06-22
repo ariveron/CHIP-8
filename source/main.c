@@ -1,6 +1,7 @@
 #include "c8.h"
+#include "c8_host.h"
+#include "c8_util.h"
 
-#include <SDL.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -93,8 +94,8 @@ int main(int argc, char** argv)
       {
           // Input
           c8_update_keys(&vm, c8_host_get_keys());
-          rateCPU -= 1000ULL * c8_host_is_speed_up() * (rateCPU > 5000);
-          rateCPU += 1000ULL * c8_host_is_speed_down() * (rateCPU < 300000);
+          rateCPU -= 100ULL * c8_host_is_speed_up() * (rateCPU > 5000);
+          rateCPU += 100ULL * c8_host_is_speed_down() * (rateCPU < 300000);
           if (c8_host_is_speed_reset()) rateCPU = 20000;
 
           // Output

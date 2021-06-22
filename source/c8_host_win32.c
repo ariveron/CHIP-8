@@ -1,6 +1,6 @@
-#ifdef WIN32
+#if defined(NO_SDL) && defined(WIN32)
 
-#include "c8.h"
+#include "c8_host.h"
 
 #include <Windows.h>
 

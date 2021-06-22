@@ -1,2 +1,2 @@
 ./make.sh
-./bin/chip8 $1
+./build/bin/chip8 $1
