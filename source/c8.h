@@ -2,7 +2,6 @@
 #define C8_H
 
 #include <stdint.h>
-#include <stddef.h>
 
 typedef uint8_t c8_byte;
 typedef uint16_t c8_word;
@@ -25,7 +24,7 @@ typedef uint16_t c8_word;
 #define C8_KEY_E 16384
 #define C8_KEY_F 32768
 
-// CHIP-8 entire state in 4096 bytes (4 KiB)
+// CHIP-8 entire state in 4096 (0x1000) bytes (4 KiB)
 typedef struct c8
 {
     c8_word pc;                     // 0x000            -> Program counter

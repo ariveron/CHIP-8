@@ -17,7 +17,7 @@ int main(int argc, char** argv)
   const char* romPath = argv[1];
 
   // Init host environment
-  if (c8_host_init(L"CHIP-8", 64, 32, 12) == 0)
+  if (c8_host_init("CHIP-8", 64, 32, 12) == 0)
   {
       printf("Unable to initialize host environment\n");
       return 1;

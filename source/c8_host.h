@@ -4,7 +4,7 @@
 #include "c8.h"
 
 // Host functions, must be implemented for each host platform
-int c8_host_init(const wchar_t* title, int width, int height, int scale);
+int c8_host_init(const char* title, int width, int height, int scale);
 void c8_host_cleanup(void);
 uint64_t c8_host_get_100nanoseconds(void);
 c8_word c8_host_get_keys(void);

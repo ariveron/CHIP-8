@@ -3,7 +3,6 @@
 #include "c8_host.h"
 
 #include <SDL2/SDL.h>
-#include <stdlib.h>
 
 void graphics_draw_pixels();
 int graphics_init();
@@ -47,7 +46,7 @@ typedef struct beep_control
 } beep_control;
 beep_control beeper;
 
-int c8_host_init(const wchar_t* title, int width, int height, int scale)
+int c8_host_init(const char* title, int width, int height, int scale)
 {
   SDL_Init(SDL_INIT_VIDEO | SDL_INIT_AUDIO);
   if (!graphics_init(width, height, scale)) return 0;
